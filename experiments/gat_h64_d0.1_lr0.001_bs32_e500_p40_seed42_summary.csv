@@ -1,0 +1,2 @@
+run_name,model,seed,hidden_dim,dropout,learning_rate,batch_size,max_epochs,patience,parameters,best_epoch,val_rmse,val_mae
+gat_h64_d0.1_lr0.001_bs32_e500_p40_seed42,gat,42,64,0.1,0.001,32,500,40,4929,298,0.7986467280959004,0.5890829724680006

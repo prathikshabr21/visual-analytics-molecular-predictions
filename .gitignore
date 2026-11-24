@@ -41,3 +41,6 @@ checkpoints/*.pt
 data/*.pt
 
 Project related files/
+# Local dashboard backups
+dashboard/app_baseline.py
+dashboard/app_v1_backup.py

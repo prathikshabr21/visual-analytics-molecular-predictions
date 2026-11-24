@@ -1,0 +1,2 @@
+run_name,model,dataset,num_node_features,seed,hidden_dim,dropout,pooling,learning_rate,batch_size,max_epochs,patience,parameters,best_epoch,epochs_completed,val_rmse,val_mae
+gat_h64_d0.1_lr0.001_bs32_e300_p40_seed42_poolcombined_dataenhanced,gat,enhanced,20,42,64,0.1,combined,0.001,32,300,40,5953,57,97,0.7887201630530651,0.5759742866245519

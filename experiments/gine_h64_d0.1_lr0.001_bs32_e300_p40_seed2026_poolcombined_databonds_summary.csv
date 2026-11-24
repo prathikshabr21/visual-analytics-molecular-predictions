@@ -1,0 +1,2 @@
+run_name,model,dataset,num_node_features,num_edge_features,seed,hidden_dim,dropout,pooling,learning_rate,batch_size,max_epochs,patience,parameters,best_epoch,epochs_completed,val_rmse,val_mae
+gine_h64_d0.1_lr0.001_bs32_e300_p40_seed2026_poolcombined_databonds,gine,bonds,6,14,2026,64,0.1,combined,0.001,32,300,40,19203,199,239,0.7048344112402817,0.4906627375599557

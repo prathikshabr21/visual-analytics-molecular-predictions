@@ -1,0 +1,2 @@
+run_name,model,dataset,num_node_features,num_edge_features,seed,hidden_dim,dropout,pooling,learning_rate,batch_size,max_epochs,patience,parameters,best_epoch,epochs_completed,val_rmse,val_mae
+edgegat_h64_d0.1_lr0.001_bs32_e300_p40_seed42_poolcombined_databonds,edgegat,bonds,6,14,42,64,0.1,combined,0.001,32,300,40,6977,182,222,0.7719013669588934,0.5740687648675084

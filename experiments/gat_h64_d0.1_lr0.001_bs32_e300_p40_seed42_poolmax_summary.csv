@@ -1,0 +1,2 @@
+run_name,model,seed,hidden_dim,dropout,pooling,learning_rate,batch_size,max_epochs,patience,parameters,best_epoch,val_rmse,val_mae
+gat_h64_d0.1_lr0.001_bs32_e300_p40_seed42_poolmax,gat,42,64,0.1,max,0.001,32,300,40,4929,286,0.8721361807323595,0.6321524184493892

@@ -1,0 +1,2 @@
+run_name,model,seed,hidden_dim,dropout,learning_rate,batch_size,max_epochs,patience,parameters,best_epoch,val_rmse,val_mae
+graphsage_h64_d0.2_lr0.001_bs32_e150_p40_seed42,graphsage,42,64,0.2,0.001,32,150,40,9153,150,1.1244437770075175,0.824796330678252
