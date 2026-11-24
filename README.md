@@ -1,176 +1,527 @@
-# Visual Analytics Project — Molecular Solubility Prediction
 
-This project uses a **Graph Convolutional Network (GCN)** to predict aqueous solubility (`log S`) for molecules from the **ESOL (Delaney)** dataset. A **Streamlit** dashboard displays test predictions and explores how prediction errors relate to molecular properties.
+# Understanding Molecular Predictions
 
-> **Current status:** One GCN baseline and a working dashboard. GNN architecture comparisons and split experiments are planned, not yet implemented.
+## Visual Analytics of Molecular Solubility Predictions Using Graph Neural Networks
 
-## 1. Project structure
+This project investigates molecular solubility prediction using Graph Neural Networks (GNNs) and interactive visual analytics.
 
-```text
-Visual Analytics Project/
-├── .venv/                          # Local Python environment
-├── data/
-│   ├── delaney-processed.csv       # Original ESOL data
-│   └── esol_graphs.pt              # Prepared graph data and splits
-├── src/
-│   ├── check_setup.py             # Check environment and CSV
-│   ├── prepare_data.py            # Convert SMILES to graphs; split data
-│   ├── model.py                   # Two-layer GCN architecture
-│   ├── train.py                   # Train, validate, test, save outputs
-│   └── visualize_baseline.py      # Generate static plots
-├── dashboard/
-│   └── app.py                     # Interactive Streamlit dashboard
-├── checkpoints/
-│   └── gcn_baseline.pt            # Best validation checkpoint
-└── experiments/
-    ├── gcn_baseline_history.csv
-    ├── gcn_baseline_predictions.csv
-    └── figures/                   # Static plots
-```
+The ESOL (Delaney) dataset is used to train, evaluate and compare multiple GNN architectures. An interactive Streamlit dashboard enables users to investigate model performance, prediction errors, molecular properties and individual molecular structures.
 
-Other optional scripts, such as `src/analyze_errors.py`, may exist depending on which steps you have completed.
+## Live Dashboard
 
-## 2. Open the project and activate the environment (macOS)
+- [Interactive Streamlit Dashboard](https://visual-analytics-molecular-predictions.streamlit.app/)
+- [GitHub Repository](https://github.com/prathikshabr21/visual-analytics-molecular-predictions)
 
-Open the **Visual Analytics Project** folder in VS Code. Open **Terminal → New Terminal** and run:
+The dashboard uses precomputed predictions and molecular visualizations. Model retraining is not required to explore the results.
 
-```bash
-cd "/Users/prathikshabr/Desktop/Visual Analytics Project"
-source .venv/bin/activate
-```
+## 1. Research Objectives
 
-Confirm that the correct Python is active:
+### RQ1 — Model Performance
 
-```bash
-python --version
-python -c "import torch, torch_geometric, rdkit, pandas, streamlit, plotly; print('Dependencies available')"
-```
+Where does the model perform well, and where does it fail?
 
-If the virtual environment is missing, create it and install the dependencies:
+- Evaluate overall prediction performance.
+- Investigate errors across different solubility ranges.
+- Explore relationships between molecular properties and prediction errors.
+- Identify accurately and inaccurately predicted molecules.
+- Connect aggregate performance with individual molecular structures.
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install torch torch-geometric rdkit pandas numpy scikit-learn matplotlib seaborn streamlit plotly
-```
+### RQ2 — Explanation Quality
 
-For reproducibility, use the existing `.venv` whenever possible. The project does not yet have a pinned dependency lockfile.
+How well does the assigned explanation method reflect the model's behavior?
 
-## 3. Fast demonstration: run the dashboard
+Planned work includes quantitative explanation evaluation, fidelity analysis and comparison of explanation quality across prediction accuracy levels.
 
-**Use this during the project review if the saved prediction CSV already exists.** You do **not** need to retrain the model to demonstrate the dashboard.
+### RQ3 — Molecular Attributions
 
-From the project root with `.venv` activated:
+What can we learn by investigating individual molecules and their attributions?
 
-```bash
-python -m streamlit run dashboard/app.py
-```
+Planned work includes interactive exploration of molecular structures, atom-level and bond-level attributions, predictions and explanation scores.
 
-Open the local URL shown in the terminal (typically `http://localhost:8501`).
+The current implementation primarily addresses RQ1.
 
-Demonstrate:
+## 2. Dataset
 
-1. The app loads **113 held-out test molecules** from `experiments/gcn_baseline_predictions.csv`.
-2. The metric cards show **test RMSE ~1.1915** and **test MAE ~0.9574**.
-3. **Predicted vs Actual Solubility:** hover over dots to inspect individual predictions and absolute errors. The dashed diagonal represents perfect predictions.
-4. **Molecular Properties vs Prediction Error:** choose **Molecular Weight**, **Polar Surface Area**, **Number of Rings**, or another descriptor from the dropdown; hover to inspect molecule details.
-5. Expand **View Prediction Data** to show the underlying joined dataset.
+The project uses the ESOL dataset introduced by Delaney (2004).
 
-To stop the app, return to the terminal and press **Ctrl+C**.
+| Characteristic | Description |
+|---|---|
+| Dataset | ESOL / Delaney |
+| Total molecules | 1,128 |
+| Original dataset columns | 10 |
+| Prediction target | Measured aqueous log solubility |
+| Target unit | log10(mol/L) |
+| Learning task | Regression |
+| Molecular representation | SMILES and molecular graphs |
+| Dashboard molecular properties | 15 |
 
-## 4. Full execution sequence (from scratch)
+The dataset contains experimentally measured aqueous solubility values and molecular descriptors.
 
-**Run these commands from the project root, in order.** The source CSV must already exist at `data/delaney-processed.csv`.
+## 3. Molecular Graph Representation
 
-### Step 1 — Check the environment and dataset
+RDKit converts SMILES strings into molecular graphs.
 
-```bash
-python src/check_setup.py
-```
+- Nodes represent atoms.
+- Edges represent chemical bonds.
+- Bonds are represented as bidirectional graph connections.
+- Each graph has a measured solubility target.
+- Molecule identifiers preserve the relationship between graphs, predictions and original molecular records.
 
-Expected dataset: **1,128 rows × 10 columns**, with no missing values.
+### Atom Features
 
-### Step 2 — Prepare molecular graphs
+The original representation contains six atom features:
 
-```bash
-python src/prepare_data.py
-```
+1. Atomic number
+2. Atom degree
+3. Formal charge
+4. Total number of hydrogen atoms
+5. Aromaticity
+6. Ring membership
 
-What it does:
-- Parses each SMILES string using RDKit.
-- Builds PyTorch Geometric molecular graphs with **six atom features** per atom and bidirectional bond connections.
-- Uses seed **42** for an **80% / 10% / 10%** train/validation/test split.
-- Saves `data/esol_graphs.pt`.
+An enhanced representation containing 20 atom features was also investigated.
 
-Expected split: **902 training**, **113 validation**, **113 test** graphs.
+### Bond Features
 
-### Step 3 — Train and evaluate the GCN
+Bond-aware architectures use 14 additional edge features representing:
 
-```bash
-python src/train.py
-```
+- Bond type
+- Conjugation
+- Ring membership
+- Bond stereochemistry
 
-Current baseline configuration: **two GCN layers**, **64 hidden features**, **dropout 0.2**, **Adam**, **learning rate 0.001**, **batch size 32**, **up to 150 epochs**. The best checkpoint is selected by validation RMSE and evaluated on the test set.
+## 4. Dataset Splitting
 
-Outputs:
+The original experiments use a reproducible random 80/10/10 split.
 
-- `checkpoints/gcn_baseline.pt` — saved model parameters
-- `experiments/gcn_baseline_history.csv` — epoch-by-epoch metrics
-- `experiments/gcn_baseline_predictions.csv` — test predictions and errors
+| Partition | Molecules |
+|---|---:|
+| Training | 902 |
+| Validation | 113 |
+| Testing | 113 |
+| Total | 1,128 |
 
-Previous baseline run (results may change if code/settings change):
+The validation set is used for checkpoint selection and model comparison. The test set is used for held-out performance evaluation.
+
+### Alternative Dataset Splits
+
+Three partitioning strategies have been prepared:
+
+| Split | Training | Validation | Testing |
+|---|---:|---:|---:|
+| Random 42 | 902 | 113 | 113 |
+| Random 123 | 902 | 113 | 113 |
+| Scaffold 42 | 902 | 113 | 113 |
+
+The scaffold-based partition groups molecules according to extracted molecular scaffolds.
+
+Preparation results:
+
+- All 1,128 molecules retained.
+- 269 scaffold groups identified.
+- 317 acyclic molecules.
+- No molecule overlap within each split.
+- No scaffold group overlap between scaffold-based partitions.
+
+A workaround using RDKit's alternative scaffold extraction implementation was required because the standard implementation failed in RDKit 2026.09.2.
+
+The workaround passed full-dataset extraction and partition integrity checks. Its equivalence to the standard implementation has not been independently verified.
+
+Alternative split training and dashboard integration are planned for the next development milestone.
+
+## 5. Model Architectures
+
+Five GNN architectures have been investigated.
+
+| Architecture | Description |
+|---|---|
+| GCN | Graph Convolutional Network |
+| GraphSAGE | Neighborhood feature aggregation |
+| GAT | Graph Attention Network |
+| EdgeGAT | Graph attention incorporating bond features |
+| GINE | Graph Isomorphism Network incorporating edge features |
+
+The models generate molecular representations through message passing, graph-level pooling and a regression layer.
+
+### Pooling Strategies
+
+The following graph-level pooling strategies were evaluated:
+
+- Global mean pooling
+- Global sum pooling
+- Global max pooling
+- Combined mean, sum and max pooling
+
+Combined pooling concatenates the three graph-level representations.
+
+## 6. Training Methodology
+
+The experimental framework investigates:
+
+- Model architecture
+- Hidden dimension
+- Learning rate
+- Dropout
+- Training duration
+- Pooling strategy
+- Atom feature representation
+- Bond feature representation
+- Training seed
+
+Training uses:
+
+- Adam optimizer
+- Mean Squared Error loss
+- Mini-batch training
+- Validation RMSE for checkpoint selection
+- Early stopping in comparison experiments
+
+A total of 19 full training experiments have been completed, excluding short implementation smoke tests.
+
+Detailed configurations and experimental findings are available in [EXPERIMENTS.md](EXPERIMENTS.md).
+
+## 7. Evaluation Metrics
+
+Model performance is evaluated using:
+
+- Root Mean Squared Error (RMSE)
+- Mean Absolute Error (MAE)
+- Coefficient of Determination (R²)
+
+Lower RMSE and MAE indicate better prediction accuracy.
+
+Higher R² indicates better agreement between measured and predicted target values relative to a constant-mean reference.
+
+Signed prediction error is defined as:
+
+    Error = Predicted logS - Measured logS
+
+Positive errors indicate overprediction, while negative errors indicate underprediction.
+
+## 8. Experimental Results
+
+### Original GCN Baseline
 
 | Metric | Value |
 |---|---:|
 | Best epoch | 145 |
-| Best validation RMSE | 1.2395 |
+| Validation RMSE | 1.2395 |
+| Validation MAE | 0.9700 |
 | Test RMSE | 1.1915 |
 | Test MAE | 0.9574 |
+| Test R² | 0.6666 |
 
-### Step 4 — Generate static plots
+### Multi-Seed Architecture Comparison
 
-```bash
-python src/visualize_baseline.py
-```
+The optimized GAT and GINE configurations were evaluated using training seeds 42, 123 and 2026 on the original fixed dataset split.
 
-Creates figures in `experiments/figures/` showing training/validation RMSE, predicted vs measured solubility, and prediction-error distribution.
+| Model | Mean Validation RMSE | Mean Test RMSE | Mean Test MAE | Mean Test R² |
+|---|---:|---:|---:|---:|
+| GCN baseline | 1.2395 | 1.1915 | 0.9574 | 0.6666 |
+| GAT | 0.7371 | 0.7634 | 0.5306 | 0.8630 |
+| GINE | 0.7385 | 0.7702 | 0.5303 | 0.8605 |
 
-### Step 5 — Launch the interactive dashboard
+The GCN baseline represents a single training run. GAT and GINE results represent averages across three training seeds.
 
-```bash
-python -m streamlit run dashboard/app.py
-```
+### Improvement over the Baseline
 
-The dashboard reads the saved test predictions and merges them with the original ESOL molecular descriptors using `molecule_id`.
+The optimized GAT configuration achieved approximately:
 
-## 5. What each data file means
+- 35.93% reduction in mean test RMSE.
+- 44.58% reduction in mean test MAE.
 
-- **`delaney-processed.csv`**: original molecular records, SMILES, measured log solubility, and descriptors.
-- **`esol_graphs.pt`**: binary PyTorch file containing molecular graph objects and data splits. It is **not** a text file; load it with PyTorch if inspection is needed. Only use `weights_only=False` on files you trust.
-- **`gcn_baseline.pt`**: saved trained GCN weights, not a chart or text document.
-- **`gcn_baseline_history.csv`**: learning progress by epoch.
-- **`gcn_baseline_predictions.csv`**: test-set `molecule_id`, actual and predicted `log S`, signed error, and absolute error.
+GAT is the recommended candidate architecture based on its mean validation RMSE and observed training-seed stability.
 
-## 6. How to explain the project in the review
+The difference between GAT and GINE is small and does not establish statistical superiority.
 
-> We use the ESOL dataset of 1,128 molecules. RDKit converts SMILES strings into graphs, where atoms are nodes and chemical bonds define edges. A two-layer GCN learns molecular representations and predicts measured log solubility. We use a reproducible 80/10/10 split, train with mean squared error, select the best checkpoint on validation RMSE, and evaluate it on held-out test molecules. Our Streamlit dashboard shows prediction accuracy and lets us explore how errors vary with molecular properties.
+The dashboard uses GAT with training seed 42 as its default reference model. Final shared checkpoint selection remains subject to project discussion.
 
-**Research Question 1:** Where does the model perform well, and where does it fail? The dashboard supports exploratory analysis; apparent relationships in scatter plots are **not** proof of causation.
+## 9. Interactive Visual Analytics Dashboard
 
-## 7. Troubleshooting
+The dashboard contains eight main pages.
 
-| Problem | What to check |
-|---|---|
-| `No module named ...` | Activate `.venv` and verify packages are installed in that environment. |
-| `FileNotFoundError` | Run commands from the **project root**, not inside `src/` or `dashboard/`. |
-| Dashboard missing prediction CSV | Run `python src/prepare_data.py`, then `python src/train.py`. |
-| Streamlit URL not opening | Check the URL printed in the terminal and keep the terminal running. |
-| Port 8501 already in use | Stop the old Streamlit process with **Ctrl+C**, or use `--server.port 8502`. |
-| `.pt` file looks unreadable in VS Code | This is expected: `.pt` is a binary serialized file. |
+### Project Overview
 
-## 8. Next steps after the first dashboard milestone
+Introduces the project, dataset, research questions and model methodology.
 
-- Compare **GCN**, **GraphSAGE**, and **GAT** under consistent settings.
-- Investigate hyperparameters and alternative data splits.
-- Extend the dashboard to compare models and inspect individual molecules.
-- Document findings and select a shared model/checkpoint for later explanation analysis.
+### Dataset Explorer
+
+Supports exploration of molecular properties, dataset partitions, distributions and individual molecular structures.
+
+### Model Performance
+
+Compares model performance across architectures, training seeds and dataset partitions.
+
+### Prediction Analysis
+
+Provides:
+
+- Predicted versus measured solubility
+- Signed prediction error distributions
+- Prediction bias across solubility levels
+- Adjustable accuracy thresholds
+- Error analysis across solubility ranges
+
+### Molecular Property Analysis
+
+Investigates relationships between molecular properties and prediction errors using scatter plots, correlation measures and grouped error statistics.
+
+### Molecular Explorer
+
+Supports:
+
+- Individual molecular structure inspection
+- Measured and predicted solubility comparison
+- Cross-model prediction comparison
+- Comparison of two molecules
+
+### RQ1 Key Findings
+
+Summarizes important observations about prediction accuracy, error patterns and difficult molecules.
+
+### Experiment Lab
+
+Documents model optimization experiments, validation performance, training histories and experimental configurations.
+
+## 10. Key RQ1 Findings
+
+The default GAT model with training seed 42 achieved:
+
+| Metric | Value |
+|---|---:|
+| Test molecules | 113 |
+| RMSE | 0.7792 |
+| MAE | 0.5319 |
+| R² | 0.8574 |
+| Mean signed error | -0.0536 |
+
+### Prediction Accuracy
+
+| Absolute Error Threshold | Molecules | Percentage |
+|---|---:|---:|
+| ≤ 0.25 | 46 | 40.71% |
+| ≤ 0.50 | 75 | 66.37% |
+| ≤ 1.00 | 95 | 84.07% |
+| ≤ 1.50 | 106 | 93.81% |
+| ≤ 2.00 | 110 | 97.35% |
+
+These thresholds are exploratory and are not universal chemical accuracy standards.
+
+### Solubility Ranges
+
+The model performs comparatively well for molecules with measured logS between -2 and 0.
+
+Larger errors are observed at extreme solubility values, particularly for the small group of molecules with positive measured logS.
+
+The model tends to overpredict very low solubility values and underpredict high solubility values.
+
+### Molecular Characteristics
+
+Molecular size-related descriptors, including atom count, bond count and molecular weight, exhibit moderate positive associations with absolute prediction error.
+
+These observations represent associations rather than causal explanations.
+
+### Individual Molecules
+
+Accurately predicted examples include:
+
+- Diethyl sulfide
+- cis-2-Pentene
+- 2,2-Dimethyl-1-butanol
+
+Difficult examples include:
+
+- Norbormide
+- Dimecron
+- Guanine
+
+Several difficult molecules exhibit consistently high prediction errors across multiple GAT training seeds.
+
+## 11. Project Structure
+
+    Visual Analytics Project/
+    |
+    |-- data/
+    |   |-- delaney-processed.csv
+    |   |-- esol_graphs.pt
+    |   |-- esol_graphs_enhanced.pt
+    |   |-- esol_graphs_bonds.pt
+    |   |-- Alternative split graph datasets
+    |
+    |-- src/
+    |   |-- check_setup.py
+    |   |-- prepare_data.py
+    |   |-- prepare_data_enhanced.py
+    |   |-- prepare_data_bonds.py
+    |   |-- prepare_alternative_splits.py
+    |   |-- model.py
+    |   |-- train.py
+    |   |-- train_comparison.py
+    |   |-- evaluate_final.py
+    |   |-- prepare_dashboard_data.py
+    |   |-- export_dashboard_predictions.py
+    |   |-- generate_molecule_images.py
+    |   |-- analyze_rq1.py
+    |   |-- visualize_baseline.py
+    |
+    |-- dashboard/
+    |   |-- app.py
+    |   |-- assets/
+    |       |-- molecules/
+    |
+    |-- experiments/
+    |   |-- Model training histories and summaries
+    |   |-- final_evaluation/
+    |   |-- dashboard_data/
+    |   |-- rq1_findings/
+    |   |-- split_comparison/
+    |   |-- figures/
+    |
+    |-- checkpoints/
+    |-- requirements.txt
+    |-- README.md
+    |-- EXPERIMENTS.md
+    |-- .gitignore
+
+Generated graph datasets and model checkpoints are stored locally and excluded from Git tracking.
+
+Precomputed dashboard data and molecular SVG images are included for dashboard deployment.
+
+## 12. Installation and Dashboard Execution
+
+### Clone the Repository
+
+    git clone https://github.com/prathikshabr21/visual-analytics-molecular-predictions.git
+
+    cd visual-analytics-molecular-predictions
+
+### Create a Python Environment
+
+    python3 -m venv .venv
+    source .venv/bin/activate
+
+### Install Dashboard Dependencies
+
+    python -m pip install -r requirements.txt
+
+### Launch the Dashboard
+
+    python -m streamlit run dashboard/app.py
+
+The application can normally be accessed at:
+
+http://localhost:8501
+
+No model retraining is required for dashboard execution.
+
+## 13. Training Environment and Reproduction
+
+The training environment additionally requires:
+
+    python -m pip install torch torch-geometric rdkit numpy pandas scikit-learn matplotlib seaborn
+
+The root requirements.txt intentionally contains only dashboard dependencies for lightweight Streamlit deployment.
+
+The training environment is not yet fully version-pinned.
+
+### Dataset Preparation
+
+    python src/check_setup.py
+    python src/prepare_data.py
+    python src/prepare_data_enhanced.py
+    python src/prepare_data_bonds.py
+
+### Original Baseline Training
+
+    python src/train.py
+
+### Example Optimized GAT Training
+
+    python src/train_comparison.py --model gat --epochs 300 --hidden_dim 64 --dropout 0.1 --lr 0.001 --batch_size 32 --seed 42 --patience 40 --pooling combined --dataset original
+
+### Alternative Dataset Preparation
+
+    python src/prepare_alternative_splits.py
+
+### Final Evaluation and Dashboard Data Generation
+
+After the required trained checkpoints are available:
+
+    python src/evaluate_final.py
+    python src/prepare_dashboard_data.py
+    python src/export_dashboard_predictions.py
+    python src/generate_molecule_images.py
+    python src/analyze_rq1.py
+
+Important: Re-running training or preparation scripts may overwrite existing generated files. Preserve the original checkpoints and experiment records before reproducing experiments.
+
+Some earlier checkpoint filenames follow previous naming conventions. The existing evaluation scripts require their expected checkpoint filenames.
+
+## 14. Limitations
+
+- ESOL is a relatively small molecular dataset.
+- Most completed model experiments use one fixed random dataset split.
+- Multiple training seeds measure training stability rather than independent dataset generalization.
+- Repeated validation-based model selection may introduce validation selection bias.
+- The original baseline test performance was observed before subsequent model comparisons.
+- Correlations between molecular properties and errors do not establish causality.
+- Extreme solubility ranges contain relatively few molecules.
+- Scaffold extraction uses an alternative RDKit implementation whose equivalence to the standard method remains unverified.
+- Attention weights alone are not treated as validated explanations.
+- Explanation quality and molecular attribution analysis remain future work.
+
+## 15. Project Progress
+
+### Completed
+
+- [x] Dataset inspection and preprocessing
+- [x] Molecular graph generation
+- [x] Original GCN baseline
+- [x] Five GNN architectures
+- [x] Nineteen full training experiments
+- [x] Hyperparameter and pooling comparisons
+- [x] Atom and bond feature investigations
+- [x] Multi-seed evaluation
+- [x] RQ1 prediction error analysis
+- [x] Interactive molecular visualization
+- [x] Eight-page Streamlit dashboard
+- [x] GitHub and Streamlit deployment
+- [x] Alternative dataset split preparation
+
+### Planned
+
+- [ ] Alternative split model training
+- [ ] Comparison of random and scaffold split performance
+- [ ] Dashboard integration of split comparisons
+- [ ] Final shared model and checkpoint selection
+- [ ] Explanation method evaluation — RQ2
+- [ ] Molecular attribution analysis — RQ3
+
+## 16. Technologies
+
+- Python
+- PyTorch
+- PyTorch Geometric
+- RDKit
+- NumPy
+- Pandas
+- Scikit-learn
+- Matplotlib
+- Plotly
+- Streamlit
+- Git and GitHub
+
+## 17. References
+
+- Delaney, J. S. (2004). ESOL: Estimating Aqueous Solubility Directly from Molecular Structure. Journal of Chemical Information and Computer Sciences, 44(3), 1000–1005.
+- Kipf, T. N., and Welling, M. (2017). Semi-Supervised Classification with Graph Convolutional Networks.
+- Hamilton, W. L., Ying, R., and Leskovec, J. (2017). Inductive Representation Learning on Large Graphs.
+- Veličković, P., et al. (2018). Graph Attention Networks.
+- Xu, K., et al. (2019). How Powerful are Graph Neural Networks?
+- RDKit Documentation: https://www.rdkit.org/docs/
+- PyTorch Geometric Documentation: https://pytorch-geometric.readthedocs.io/
+
+---
+
+University Visual Analytics Project — Understanding Molecular Predictions
+
+Current milestone: RQ1 and model performance investigation.

@@ -1,0 +1,2 @@
+rdkit_version,scaffold_method,kekulize_before_extraction,clear_aromatic_flags,include_chirality,acyclic_grouping,scaffold_split_seed,alternative_random_seed
+2026.09.2,_pyGetScaffoldForMol,True,True,False,single_empty_scaffold,42,123
